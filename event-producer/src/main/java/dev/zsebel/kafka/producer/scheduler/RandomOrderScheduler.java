@@ -24,7 +24,7 @@ public class RandomOrderScheduler {
         this.orderProducer = orderProducer;
     }
 
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedRate = 3000)
     public void schedule() {
         Order order = randomOrderGenerator.generate();
         orderProducer.send(order);
