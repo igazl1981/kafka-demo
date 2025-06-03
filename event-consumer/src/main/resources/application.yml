@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: "kafka-event-producer"
+  kafka:
+    bootstrap-servers: "localhost:9092,localhost:9093,localhost:9094"
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        "[spring.json.trusted.packages]": "dev.zsebel.kafka.domain"
+      group-id: "kafka-demo-group"
+
+server:
+  port: 0
