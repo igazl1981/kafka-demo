@@ -19,7 +19,7 @@ public class RandomOrderScheduler {
     private final OrderProducer orderProducer;
 
     @Autowired
-    public RandomOrderScheduler(final RandomOrderGenerator randomOrderGenerator, final OrderProducer orderProducer) {
+    RandomOrderScheduler(final RandomOrderGenerator randomOrderGenerator, final OrderProducer orderProducer) {
         this.randomOrderGenerator = randomOrderGenerator;
         this.orderProducer = orderProducer;
     }

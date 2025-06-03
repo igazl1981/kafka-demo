@@ -14,9 +14,8 @@ public class OrderConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(OrderConsumer.class);
 
     @KafkaListener(topics = "orders", containerFactory = "kafkaListenerContainerFactory")
-    public void consume(ConsumerRecord<String, Order> record) {
+    public void consume(ConsumerRecord<Long, Order> record) {
         Order order = record.value();
-        // TODO: fix logging to log product quantity
         LOGGER.info(
             "Received event - topic: {}, partition: {}, orderId: {}, productCount: {}",
             record.topic(),

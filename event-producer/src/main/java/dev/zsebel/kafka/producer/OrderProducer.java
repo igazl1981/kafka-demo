@@ -10,11 +10,11 @@ import dev.zsebel.kafka.domain.Order;
 @Component
 public class OrderProducer {
 
-    private final KafkaTemplate<String, Order> kafkaTemplate;
+    private final KafkaTemplate<Long, Order> kafkaTemplate;
     private final String topic;
 
     @Autowired
-    public OrderProducer(final KafkaTemplate<String, Order> kafkaTemplate, @Value("${spring.kafka.topic}") final String topic) {
+    OrderProducer(final KafkaTemplate<Long, Order> kafkaTemplate, @Value("${spring.kafka.topic}") final String topic) {
         this.kafkaTemplate = kafkaTemplate;
         this.topic = topic;
     }
