@@ -1,0 +1,3 @@
+- targets:
+    - 'producer-app:8081'
+    - 'consumer-app:8081'

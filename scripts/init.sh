@@ -8,7 +8,7 @@ sleep 10
   --create \
   --topic orders \
   --partitions 3 \
-  --replication-factor 3 \
+  --replication-factor 1 \
   --if-not-exists
 
 echo "Topic creation script completed."

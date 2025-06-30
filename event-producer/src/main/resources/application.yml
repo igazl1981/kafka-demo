@@ -7,3 +7,11 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.LongSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     topic: "orders"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  server:
+    port: 8081

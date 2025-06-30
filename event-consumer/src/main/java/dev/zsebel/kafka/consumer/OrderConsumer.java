@@ -13,7 +13,7 @@ public class OrderConsumer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OrderConsumer.class);
 
-    @KafkaListener(topics = "orders", containerFactory = "kafkaListenerContainerFactory")
+    @KafkaListener(topics = "orders")
     public void consume(ConsumerRecord<Long, Order> consumerRecord) {
         Order order = consumerRecord.value();
         LOGGER.info(

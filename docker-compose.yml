@@ -1,4 +1,3 @@
-version: "3.8"
 
 name: "kafka-demo-cluster"
 
@@ -8,12 +7,37 @@ volumes:
   kafka3_data: {}
 
 services:
+
+  prometheus1:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - "./scripts/prometheus/prometheus.v1.yml:/etc/prometheus/prometheus.yml"
+      - "./scripts/prometheus/dynamic/targets.yml:/etc/prometheus/dynamic/targets.yml"
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_PATHS_DATA : /var/lib/grafana
+      GF_SECURITY_ADMIN_PASSWORD : kafka
+    volumes:
+      - ./scripts/grafana/provisioning:/etc/grafana/provisioning
+      - ./scripts/grafana/dashboards:/var/lib/grafana/dashboards
+    container_name: grafana
+    depends_on:
+      - prometheus1
+
   kafka1:
     image: apache/kafka:4.0.0
     hostname: kafka1
-    container_name: kafka_broker_1
+    container_name: kafka1
     ports:
       - "9092:9092"
+      - "19991:9991"
     volumes:
       - kafka1_data:/var/lib/kafka/data
     environment:
@@ -31,13 +55,17 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+      # On my M4 Mac I had to add to make it work ... no clue what does it do
+      _JAVA_OPTIONS: "-XX:UseSVE=0"
+      KAFKA_JMX_PORT: 9991
 
   kafka2:
     image: apache/kafka:4.0.0
     hostname: kafka2
-    container_name: kafka_broker_2
+    container_name: kafka2
     ports:
       - "9093:9093"
+      - "29991:9991"
     volumes:
       - kafka2_data:/var/lib/kafka/data
     environment:
@@ -55,13 +83,16 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+      _JAVA_OPTIONS: "-XX:UseSVE=0"
+      KAFKA_JMX_PORT: 9991
 
   kafka3:
     image: apache/kafka:4.0.0
     hostname: kafka3
-    container_name: kafka_broker_3
+    container_name: kafka3
     ports:
       - "9094:9094"
+      - "39991:9991"
     volumes:
       - kafka3_data:/var/lib/kafka/data
     environment:
@@ -79,6 +110,47 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+      _JAVA_OPTIONS: "-XX:UseSVE=0"
+      KAFKA_JMX_PORT: 9991
+
+  jmx-kafka1:
+    image: "sscaling/jmx-prometheus-exporter"
+    ports:
+      - "5556:5556"
+    environment:
+      CONFIG_YML : "/etc/jmx_exporter/config.yml"
+      JVM_OPTS: ${PROMETHEUS_JMX_AGENT_JVM_OPTS}
+    volumes:
+      - ./scripts/jmx_exporter/config_kafka1.yml:/etc/jmx_exporter/config.yml
+    container_name: jmx-kafka1
+    depends_on:
+      - kafka1
+
+  jmx-kafka2:
+    image: "sscaling/jmx-prometheus-exporter"
+    ports:
+      - "5557:5556"
+    environment:
+      CONFIG_YML : "/etc/jmx_exporter/config.yml"
+      JVM_OPTS: ${PROMETHEUS_JMX_AGENT_JVM_OPTS}
+    volumes:
+      - ./scripts/jmx_exporter/config_kafka2.yml:/etc/jmx_exporter/config.yml
+    container_name: jmx-kafka2
+    depends_on:
+      - kafka2
+
+  jmx-kafka3:
+    image: "sscaling/jmx-prometheus-exporter"
+    ports:
+      - "5558:5556"
+    environment:
+      CONFIG_YML : "/etc/jmx_exporter/config.yml"
+      JVM_OPTS: ${PROMETHEUS_JMX_AGENT_JVM_OPTS}
+    volumes:
+      - ./scripts/jmx_exporter/config_kafka3.yml:/etc/jmx_exporter/config.yml
+    container_name: jmx-kafka3
+    depends_on:
+      - kafka3
 
   kafka-init:
     image: apache/kafka:4.0.0
@@ -105,6 +177,34 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: "Kafka demo cluster"
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka1:29092,kafka2:29093,kafka3:29094"
+
+
+  consumer-app:
+    image: consumer-app:latest
+    build:
+      context: .
+      dockerfile: consumer.Dockerfile
+    depends_on:
+      - kafka1
+    environment:
+      SPRING_PROFILES_ACTIVE: "container"
+      BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29093,kafka3:29094"
+    ports:
+      - "9080:8080"
+
+  producer-app:
+    image: priducer-app:latest
+    build:
+      context: .
+      dockerfile: producer.Dockerfile
+    depends_on:
+      - kafka1
+    environment:
+      SPRING_PROFILES_ACTIVE: "container"
+      BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29093,kafka3:29094"
+    ports:
+      - "9081:8080"
+
 
 networks:
   default:
