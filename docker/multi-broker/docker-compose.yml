@@ -1,10 +1,10 @@
 
-name: "kafka-demo-cluster"
+name: "kafka-multi-broker-cluster-demo"
 
 volumes:
-  kafka1_data: {}
-  kafka2_data: {}
-  kafka3_data: {}
+  kafka1_multi_data: {}
+  kafka2_multi_data: {}
+  kafka3_multi_data: {}
 
 services:
 
@@ -12,8 +12,8 @@ services:
     image: prom/prometheus
     container_name: prometheus
     volumes:
-      - "./scripts/prometheus/prometheus.v1.yml:/etc/prometheus/prometheus.yml"
-      - "./scripts/prometheus/dynamic/targets.yml:/etc/prometheus/dynamic/targets.yml"
+      - "../configuration/prometheus/prometheus.multi-broker.yml:/etc/prometheus/prometheus.yml"
+      - "../configuration/prometheus/dynamic/targets.yml:/etc/prometheus/dynamic/targets.yml"
     ports:
       - "9090:9090"
 
@@ -25,8 +25,8 @@ services:
       GF_PATHS_DATA : /var/lib/grafana
       GF_SECURITY_ADMIN_PASSWORD : kafka
     volumes:
-      - ./scripts/grafana/provisioning:/etc/grafana/provisioning
-      - ./scripts/grafana/dashboards:/var/lib/grafana/dashboards
+      - ../configuration/grafana/provisioning:/etc/grafana/provisioning
+      - ../configuration/grafana/dashboards:/var/lib/grafana/dashboards
     container_name: grafana
     depends_on:
       - prometheus1
@@ -39,7 +39,7 @@ services:
       - "9092:9092"
       - "19991:9991"
     volumes:
-      - kafka1_data:/var/lib/kafka/data
+      - kafka1_multi_data:/var/lib/kafka/data
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: "broker,controller"
@@ -65,9 +65,8 @@ services:
     container_name: kafka2
     ports:
       - "9093:9093"
-      - "29991:9991"
     volumes:
-      - kafka2_data:/var/lib/kafka/data
+      - kafka2_multi_data:/var/lib/kafka/data
     environment:
       KAFKA_NODE_ID: 2
       KAFKA_PROCESS_ROLES: "broker,controller"
@@ -92,9 +91,8 @@ services:
     container_name: kafka3
     ports:
       - "9094:9094"
-      - "39991:9991"
     volumes:
-      - kafka3_data:/var/lib/kafka/data
+      - kafka3_multi_data:/var/lib/kafka/data
     environment:
       KAFKA_NODE_ID: 3
       KAFKA_PROCESS_ROLES: "broker,controller"
@@ -121,7 +119,7 @@ services:
       CONFIG_YML : "/etc/jmx_exporter/config.yml"
       JVM_OPTS: ${PROMETHEUS_JMX_AGENT_JVM_OPTS}
     volumes:
-      - ./scripts/jmx_exporter/config_kafka1.yml:/etc/jmx_exporter/config.yml
+      - ../configuration/jmx_exporter/config_kafka1.yml:/etc/jmx_exporter/config.yml
     container_name: jmx-kafka1
     depends_on:
       - kafka1
@@ -134,7 +132,7 @@ services:
       CONFIG_YML : "/etc/jmx_exporter/config.yml"
       JVM_OPTS: ${PROMETHEUS_JMX_AGENT_JVM_OPTS}
     volumes:
-      - ./scripts/jmx_exporter/config_kafka2.yml:/etc/jmx_exporter/config.yml
+      - ../configuration/jmx_exporter/config_kafka2.yml:/etc/jmx_exporter/config.yml
     container_name: jmx-kafka2
     depends_on:
       - kafka2
@@ -147,7 +145,7 @@ services:
       CONFIG_YML : "/etc/jmx_exporter/config.yml"
       JVM_OPTS: ${PROMETHEUS_JMX_AGENT_JVM_OPTS}
     volumes:
-      - ./scripts/jmx_exporter/config_kafka3.yml:/etc/jmx_exporter/config.yml
+      - ../configuration/jmx_exporter/config_kafka3.yml:/etc/jmx_exporter/config.yml
     container_name: jmx-kafka3
     depends_on:
       - kafka3
@@ -160,7 +158,7 @@ services:
       - kafka2
       - kafka3
     volumes:
-      - ./scripts/init.sh:/init.sh
+      - ../scripts/init.sh:/init.sh
     entrypoint: [ "sh", "/init.sh" ]
 
   kafka-ui:
@@ -178,33 +176,38 @@ services:
       KAFKA_CLUSTERS_0_NAME: "Kafka demo cluster"
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka1:29092,kafka2:29093,kafka3:29094"
 
-
   consumer-app:
     image: consumer-app:latest
     build:
-      context: .
+      context: ../../
       dockerfile: consumer.Dockerfile
     depends_on:
       - kafka1
     environment:
       SPRING_PROFILES_ACTIVE: "container"
       BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29093,kafka3:29094"
-    ports:
-      - "9080:8080"
+      CONSUL_HOST: "consul"
 
   producer-app:
     image: priducer-app:latest
     build:
-      context: .
+      context: ../../
       dockerfile: producer.Dockerfile
     depends_on:
       - kafka1
     environment:
       SPRING_PROFILES_ACTIVE: "container"
       BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29093,kafka3:29094"
-    ports:
-      - "9081:8080"
 
+  consul:
+    image: bitnami/consul:latest
+    ports:
+      - 8300:8300
+      - 8301:8301
+      - 8301:8301/udp
+      - 8500:8500
+      - 8600:8600
+      - 8600:8600/udp
 
 networks:
   default:

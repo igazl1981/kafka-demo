@@ -6,4 +6,6 @@ RUN --mount=type=cache,target=/root/.m2 mvn clean package -DskipTests
 FROM openjdk:24-jdk-slim
 WORKDIR /app
 COPY --from=build /app/event-consumer/target/*.jar app.jar
-ENTRYPOINT ["java", "-XX:UseSVE=0", "-jar", "app.jar"]
+COPY ./docker/scripts/consumer-entrypoint.sh entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/bin/sh", "-c", "/app/entrypoint.sh"]

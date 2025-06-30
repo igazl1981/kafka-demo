@@ -1,0 +1,123 @@
+
+name: "kafka-single-broker-cluster-demo"
+
+volumes:
+  kafka1_single_data: {}
+
+services:
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - "../configuration/prometheus/prometheus.single-broker.yml:/etc/prometheus/prometheus.yml"
+      - "../configuration/prometheus/dynamic/targets.yml:/etc/prometheus/dynamic/targets.yml"
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_PATHS_DATA : /var/lib/grafana
+      GF_SECURITY_ADMIN_PASSWORD : kafka
+    volumes:
+      - ../configuration/grafana/provisioning:/etc/grafana/provisioning
+      - ../configuration/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+
+  kafka1:
+    image: apache/kafka:4.0.0
+    hostname: kafka1
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka1_single_data:/var/lib/kafka/data
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:9091"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka1:29092,PLAINTEXT_HOST://localhost:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9091"
+      KAFKA_CLUSTER_ID: "YlVzS3JBRlRDbHVzdGVyMQ=="
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+      # On my M4 Mac I had to add to make it work ... no clue what does it do
+      _JAVA_OPTIONS: "-XX:UseSVE=0"
+      KAFKA_JMX_PORT: 9991
+
+  jmx-kafka1:
+    image: "sscaling/jmx-prometheus-exporter"
+    ports:
+      - "5556:5556"
+    environment:
+      CONFIG_YML : "/etc/jmx_exporter/config.yml"
+      JVM_OPTS: ${PROMETHEUS_JMX_AGENT_JVM_OPTS}
+    volumes:
+      - ../configuration/jmx_exporter/config_kafka1.yml:/etc/jmx_exporter/config.yml
+    depends_on:
+      - kafka1
+
+  kafka-init:
+    image: apache/kafka:4.0.0
+    depends_on:
+      - kafka1
+    volumes:
+      - ../scripts/init.sh:/init.sh
+    entrypoint: [ "sh", "/init.sh" ]
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    hostname: kafka-ui
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka1
+      - kafka-init
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "Kafka demo cluster"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka1:29092"
+
+  consumer-app:
+    image: consumer-app:latest
+    build:
+      context: ../../
+      dockerfile: consumer.Dockerfile
+    depends_on:
+      - kafka1
+    environment:
+      SPRING_PROFILES_ACTIVE: "container"
+      BOOTSTRAP_SERVERS: "kafka1:29092"
+      CONSUL_HOST: "consul"
+
+  producer-app:
+    image: producer-app:latest
+    build:
+      context: ../../
+      dockerfile: producer.Dockerfile
+    depends_on:
+      - kafka1
+    environment:
+      SPRING_PROFILES_ACTIVE: "container"
+      BOOTSTRAP_SERVERS: "kafka1:29092"
+
+  consul:
+    image: bitnami/consul:latest
+    ports:
+      - 8300:8300
+      - 8301:8301
+      - 8301:8301/udp
+      - 8500:8500
+      - 8600:8600
+      - 8600:8600/udp
+
+networks:
+  default:
+    name: kafka-kraft-network

@@ -20,6 +20,6 @@ public class OrderProducer {
     }
 
     public void send(final Order order) {
-        kafkaTemplate.send(topic, order);
+        kafkaTemplate.send(topic, order.orderId(), order);
     }
 }

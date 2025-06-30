@@ -1,6 +1,15 @@
 spring:
   application:
     name: "kafka-event-consumer"
+  config:
+    import: "optional:consul:"
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: 8500
+      discovery:
+        instance-id: "consumer-app-${INSTANCE_ID:--}"
+        service-name: "${spring.application.name}"
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
@@ -9,11 +18,10 @@ spring:
       properties:
         "[spring.json.trusted.packages]": "dev.zsebel.kafka.domain"
       group-id: "kafka-demo-group1"
+      client-id: consumer-app-${INSTANCE_ID:--}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info,prometheus
-  server:
-    port: 8081
